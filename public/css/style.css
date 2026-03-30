@@ -1,0 +1,56 @@
+body
+{
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+main{
+    padding: 20px;
+}
+
+:root
+{
+    --teal-50: #f0fdfa;
+    --teal-100: #ccfbf1;
+    --teal-200: #99f6e4;
+    --teal-300: #5eead4;
+    --teal-400: #2dd4bf;
+    --teal-500: #14b8a6;
+    --teal-600: #0d9488;
+    --teal-700: #0f766e;
+    --teal-800: #115e59;
+    --teal-900: #134e4a;
+}
+
+.custom-navbar {
+    background-color: var(--teal-900);
+}
+
+.avatar {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+
+.dropdown-item {
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--teal-700) !important;
+    color: white !important;
+}
+
+.btn.btn-teal-600 {
+    background-color: var(--teal-600) !important;
+    color: white !important;
+}
+
+.btn.btn-teal-600:hover,
+.btn.btn-teal-600:focus {
+    background-color: var(--teal-700) !important;
+    color: white !important;
+}
