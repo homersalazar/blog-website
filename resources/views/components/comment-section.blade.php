@@ -97,19 +97,44 @@
 
         const deleteComment = (commentId, postId) => {
             Swal.fire({
-                title: 'Delete comment?',
-                icon: 'warning',
+                title: "Are you sure?",
+                text: "You won't be able to revert this!",
+                icon: "warning",
                 showCancelButton: true,
-                confirmButtonText: 'Yes, delete it!'
+                confirmButtonColor: "#3085d6",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Yes, delete it!"
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
                         url: `/comments/${commentId}`,
-                        method: 'POST',
-                        data: { '_token': '{{ csrf_token() }}', '_method': 'DELETE' },
+                        method: "POST",
+                        data: {
+                            '_token': '{{ csrf_token() }}',
+                            '_method': 'delete'
+                        },
                         success: function(data) {
                             document.getElementById(`comment-${commentId}`).remove();
-                            Swal.fire({ title: 'Deleted!', icon: 'success', timer: 1500, showConfirmButton: false });
+                            Swal.fire({
+                                title: 'Success!',
+                                text: data.message || "Comment deleted successfully",
+                                icon: 'success',
+                                showConfirmButton: false,
+                                timer: 2000
+                            }).then(() => window.location.reload());
+                        },
+                        error: function(xhr) {
+                            let message = 'An error occurred while deleting the comment.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+                            Swal.fire({
+                                title: "Info!",
+                                text: message,
+                                icon: "info",
+                                showConfirmButton: false,
+                                timer: 4000
+                            });
                         }
                     });
                 }

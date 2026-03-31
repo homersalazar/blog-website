@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\UpdateAvatarRequest;
+use App\Http\Requests\UpdatePasswordRequest;
+use App\Http\Requests\UpdateProfileInfoRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
@@ -14,52 +18,59 @@ class ProfileController extends Controller
         return view('profile.index');
     }
 
-    public function updateInfo(Request $request)
+    public function updateInfo(UpdateProfileInfoRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email:rfc,dns|unique:users,email,' . Auth::id(),
-        ]);
+        DB::beginTransaction();
+        try {
+            Auth::user()->update($request->only('name', 'email'));
 
-        Auth::user()->update($request->only('name', 'email'));
-
-        return back()->with('success', 'Profile updated successfully.');
+            DB::commit();
+            return back()->with('success', 'Profile updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('update info error: ', ['exception' => $e]);
+            return redirect()->back()->withErrors([
+                'error' => 'Something went wrong. Please try again later.'
+            ])->withInput();
+        }
     }
 
-    public function updateAvatar(Request $request)
+    public function updateAvatar(UpdateAvatarRequest $request)
     {
-        $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
+        DB::beginTransaction();
+        try {
 
-        if ($request->hasFile('avatar')) {
-            $uploadedFile = $request->file('avatar');
-            $filename = Auth::id() . '.' . $uploadedFile->extension();
-            $path = 'public/avatar/';
+            if ($request->hasFile('avatar')) {
+                $uploadedFile = $request->file('avatar');
+                $filename = Auth::id() . '.' . $uploadedFile->extension();
+                $path = 'public/avatar/';
 
-            // delete old
-            if (Auth::user()->avatar && Storage::exists($path . Auth::user()->avatar)) {
-                Storage::delete($path . Auth::user()->avatar);
+                // delete old
+                if (Auth::user()->avatar && Storage::exists($path . Auth::user()->avatar)) {
+                    Storage::delete($path . Auth::user()->avatar);
+                }
+
+                // store new
+                $uploadedFile->storeAs($path, $filename);
+
+                Auth::user()->avatar = $filename;
             }
 
-            // store new
-            $uploadedFile->storeAs($path, $filename);
+            Auth::user()->save();
 
-            Auth::user()->avatar = $filename;
+            DB::commit();
+            return back()->with('success', 'Avatar updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('update avatar error: ', ['exception' => $e]);
+            return redirect()->back()->withErrors([
+                'error' => 'Something went wrong. Please try again later.'
+            ])->withInput();
         }
-
-        Auth::user()->save();
-
-        return back()->with('success', 'Avatar updated successfully.');
     }
 
-    public function updatePassword(Request $request)
+    public function updatePassword(UpdatePasswordRequest $request)
     {
-        $request->validate([
-            'current_password' => 'required',
-            'new_password' => 'required|confirmed|min:6',
-        ]);
-
         if (!Hash::check($request->current_password, Auth::user()->password)) {
             return back()->withErrors(['current_password' => 'Current password does not match.']);
         }

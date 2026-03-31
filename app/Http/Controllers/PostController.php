@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePostRequest;
+use App\Http\Requests\UpdatePostRequest;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -55,14 +57,8 @@ class PostController extends Controller
         return view('posts.my-posts', compact('posts', 'comments'));
     }
 
-    public function store(Request $request)
+    public function store(StorePostRequest $request)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
-
         DB::beginTransaction();
 
         try {
@@ -83,7 +79,6 @@ class PostController extends Controller
 
             DB::commit();
             return redirect()->route('posts.my')->with('success', 'Post created successfully!');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('store post error: ', ['exception' => $e]);
@@ -93,12 +88,16 @@ class PostController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdatePostRequest $request, $id)
     {
         DB::beginTransaction();
 
         try {
             $post = Post::findOrFail($id);
+
+            // Ensure the authenticated user is the owner of the post
+            $this->authorize('update', $post);
+
 
             $data = [
                 'title' => $request->title,
@@ -126,7 +125,6 @@ class PostController extends Controller
                 'success' => true,
                 'message' => 'Post updated successfully'
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -141,14 +139,13 @@ class PostController extends Controller
 
     public function destroy($id)
     {
-        $post = Post::findOrFail($id);
-
         DB::beginTransaction();
         try {
+            $post = Post::findOrFail($id);
+
             // Ensure the authenticated user is the owner of the post
-            if ($post->user_id !== auth()->id()) {
-                return response()->json(['error' => 'Unauthorized']);
-            }
+            $this->authorize('delete', $post);
+
 
             // Delete the post image if it exists
             if ($post->image) {
@@ -159,7 +156,6 @@ class PostController extends Controller
 
             DB::commit();
             return response()->json(['success' => 'Post deleted successfully']);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('destroy post error: ', ['exception' => $e]);
@@ -168,5 +164,4 @@ class PostController extends Controller
             ])->withInput();
         }
     }
-
 }

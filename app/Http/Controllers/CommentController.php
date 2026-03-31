@@ -2,40 +2,34 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreCommentRequest;
+use App\Models\Comment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CommentController extends Controller
 {
-    public function store(Request $request, $postId)
+    public function store(StoreCommentRequest $request, $postId)
     {
-        $request->validate([
-            'comment' => 'required|string|max:1000'
-        ]);
-
         DB::beginTransaction();
 
         try {
-
-            DB::table('comments')->insert([
+            $comment = Comment::create([
                 'user_id'    => Auth::id(),
                 'post_id'    => $postId,
                 'comment'    => $request->comment,
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
 
-            $commentId = DB::getPdo()->lastInsertId();
+            $commentId = $comment->id;
 
             DB::commit();
             return response()->json([
                 'success'    => true,
-                'comment_id' => $commentId,           // 👈 needed for id="comment-{id}"
-                'comment'    => $request->comment,    // 👈 needed for display
-                'user_name'  => ucwords(Auth::user()->name), // 👈 needed for display
-                'created_at' => 'just now',           // 👈 needed for timestamp
+                'comment_id' => $commentId,
+                'comment'    => $request->comment,
+                'user_name'  => ucwords(Auth::user()->name),
+                'created_at' => 'just now',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -51,20 +45,18 @@ class CommentController extends Controller
 
     public function destroy($id)
     {
-        $comment = DB::table('comments')->where('id', $id)->first();
         DB::beginTransaction();
 
         try {
+            $comment = Comment::findOrFail($id);
+
+            $this->authorize('delete', $comment);
 
             if (!$comment) {
                 return response()->json(['message' => 'Comment not found.'], 404);
             }
 
-            if ($comment->user_id !== Auth::id()) {
-                return response()->json(['message' => 'Unauthorized.'], 403);
-            }
-
-            DB::table('comments')->where('id', $id)->delete();
+            $comment->delete();
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Comment deleted.']);

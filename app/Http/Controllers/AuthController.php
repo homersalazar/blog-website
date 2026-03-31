@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LoginUserRequest;
+use App\Http\Requests\RegisterUserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -18,29 +20,18 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function login(Request $request)
+    public function login(LoginUserRequest $request)
     {
-        $request->validate([
-            'email' => 'required',
-            'password' => 'required',
-        ]);
-
-        try {
-            $credentials = $request->only('email', 'password');
-            // Now attempt authentication
-            if (auth()->attempt($credentials)) {
-                return redirect()->route('home')
-                    ->with('success', 'Welcome back, ' . Auth::user()->name . '!');
-            }
-            return redirect()->back()
-                ->with('error', 'Invalid credentials')
-                ->withInput();
-        } catch (\Exception $e) {
-            Log::error('login error', ['exception' => $e]);
-            return redirect()->back()->withErrors([
-                'error' => 'Something went wrong. Please try again later.'
-            ]);
+        $credentials = $request->only('email', 'password');
+        // Now attempt authentication
+        if (auth()->attempt($credentials)) {
+            return redirect()->route('home')
+                ->with('success', 'Welcome back, ' . Auth::user()->name . '!');
         }
+
+        return redirect()->back()
+            ->with('error', 'Invalid credentials')
+            ->withInput();
     }
 
     public function showRegister()
@@ -48,22 +39,17 @@ class AuthController extends Controller
         return view('auth.register');
     }
 
-    public function register(Request $request)
+    public function register(RegisterUserRequest $request)
     {
-        $request->validate([
-            'fullname' => 'required|string|max:255',
-            'email' => 'required|email:rfc,dns|unique:users,email',
-            'password' => 'required|min:8|confirmed',
-        ]);
-
         DB::beginTransaction();
 
         try {
-            $user = new User();
-            $user->name = ucwords($request->input('fullname')); // or $user->fullname if your column is fullname
-            $user->email = $request->input('email');
-            $user->password = Hash::make($request->input('password'));
-            $user->save();
+
+            User::create([
+                'name' => ucwords($request->fullname),
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
             DB::commit();
             return redirect()->route('login')->with('success', 'Registration successful! Please log in.');
@@ -82,5 +68,4 @@ class AuthController extends Controller
         Auth::logout();
         return redirect()->route('home')->with('success', 'Logged out successfully!');
     }
-
 }
